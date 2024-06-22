@@ -1,0 +1,68 @@
+.hospital-simulator {
+  display: flex;
+  height: 100vh;
+}
+
+.floor-plan {
+  flex: 3;
+  display: flex;
+  flex-wrap: wrap;
+  padding: 20px;
+  background-color: #f0f0f0;
+}
+
+.bed {
+  width: 60px;
+  height: 100px;
+  margin: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.bed.available {
+  background-color: #90EE90;
+  border: 2px solid #32CD32;
+}
+
+.bed.occupied {
+  background-color: #FFA07A;
+  border: 2px solid #FF6347;
+}
+
+.sidebar {
+  flex: 1;
+  padding: 20px;
+  background-color: #e0e0e0;
+}
+
+.sidebar form {
+  margin-top: 20px;
+}
+
+.sidebar input[type="text"] {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.sidebar button {
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.sidebar button:hover {
+  background-color: #45a049;
+}
+
+.response {
+  margin-top: 20px;
+  padding: 10px;
+  background-color: #
+}
