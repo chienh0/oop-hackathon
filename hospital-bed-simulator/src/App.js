@@ -1,10 +1,18 @@
 import React, { useState } from 'react';
 import './HospitalSimulator.css';
+import Anthropic from '@anthropic-ai/sdk';
+
+// Initialize the Anthropic client
+const anthropic = new Anthropic({
+  apiKey: process.env.REACT_APP_ANTHROPIC_API_KEY,
+  baseURL: 'http://localhost:3000/anthropic-api',
+});
 
 function App() {
   const [beds, setBeds] = useState(Array(20).fill(false));
   const [query, setQuery] = useState('');
   const [response, setResponse] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const toggleBed = (index) => {
     const newBeds = [...beds];
@@ -13,36 +21,62 @@ function App() {
     console.log(`Bed ${index + 1} is now ${newBeds[index] ? 'occupied' : 'available'}`);
   };
 
-  const handleQuery = (e) => {
+  const handleQuery = async (e) => {
     e.preventDefault();
-    const result = processQuery(query);
-    setResponse(result);
+    setIsLoading(true);
+
+    try {
+      const result = await processQuery(query);
+      setResponse(result);
+    } catch (error) {
+      console.error('Error processing query:', error);
+      setResponse("Sorry, there was an error processing your query.");
+    }
+
+    setIsLoading(false);
     setQuery('');
   };
 
-  const processQuery = (input) => {
-    const lowerInput = input.toLowerCase();
+  const processQuery = async (input) => {
+    try {
+      const bedStatus = beds.map((isOccupied, index) =>
+        `Bed ${index + 1}: ${isOccupied ? 'Occupied' : 'Available'}`
+      ).join(', ');
 
-    if (lowerInput.includes('show available beds')) {
-      const availableBeds = beds.reduce((acc, bed, index) =>
-        !bed ? acc.concat(index + 1) : acc, []);
-      return `Available beds: ${availableBeds.join(', ')}`;
-    }
+      const messages = [
+        { role: "user", content: `The current bed status is: ${bedStatus}. User query: ${input}. Based on the bed status and the user's query, provide a response and suggest any actions if necessary. If the query involves changing bed status, include the command 'TOGGLE_BED_X' where X is the bed number.` },
+      ];
 
-    if (lowerInput.includes('assign patient to bed')) {
-      const bedNumber = parseInt(lowerInput.split('bed')[1].trim());
-      if (bedNumber && bedNumber <= beds.length) {
-        if (!beds[bedNumber - 1]) {
-          toggleBed(bedNumber - 1);
-          return `Patient assigned to bed ${bedNumber}`;
-        } else {
-          return `Bed ${bedNumber} is already occupied`;
+      console.log("Sending request to Anthropic API...");
+      const completion = await anthropic.messages.create({
+        model: "claude-3-sonnet-20240229",  // Updated to Claude 3.5 Sonnet model
+        system: "You are an AI assistant managing a hospital bed system.",
+        messages: messages,
+        max_tokens: 1000,
+      });
+      console.log("Received response from Anthropic:", completion);
+
+      const aiResponse = completion.content[0].text;
+
+      // Check if the AI suggested toggling a bed
+      const toggleMatch = aiResponse.match(/TOGGLE_BED_(\d+)/);
+      if (toggleMatch) {
+        const bedNumber = parseInt(toggleMatch[1]) - 1;
+        if (bedNumber >= 0 && bedNumber < beds.length) {
+          toggleBed(bedNumber);
         }
       }
-      return 'Invalid bed number';
-    }
 
-    return "I'm sorry, I didn't understand that query.";
+      return aiResponse.replace(/TOGGLE_BED_\d+/g, '').trim();
+    } catch (error) {
+      console.error("Error in processQuery:", error);
+      console.error("Error details:", error.message);
+      if (error.response) {
+        console.error("Response data:", error.response.data);
+        console.error("Response status:", error.response.status);
+      }
+      return "Sorry, there was an error processing your query.";
+    }
   };
 
   return (
@@ -69,7 +103,9 @@ function App() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Enter your query..."
           />
-          <button type="submit">Submit</button>
+          <button type="submit" disabled={isLoading}>
+            {isLoading ? 'Processing...' : 'Submit'}
+          </button>
         </form>
         {response && <p className="response">{response}</p>}
       </div>
