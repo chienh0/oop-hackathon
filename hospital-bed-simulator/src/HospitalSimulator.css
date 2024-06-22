@@ -3,6 +3,11 @@
   height: 100vh;
 }
 
+.main-content {
+  display: flex;
+  flex: 1;
+}
+
 .floor-plan {
   flex: 3;
   display: flex;
@@ -21,6 +26,7 @@
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
+  position: relative; /* Add this to allow absolute positioning of the nurse indicator */
 }
 
 .bed.available {
@@ -37,32 +43,82 @@
   flex: 1;
   padding: 20px;
   background-color: #e0e0e0;
+  overflow-y: auto;
 }
 
-.sidebar form {
+.nurse-manager {
+  margin-top: 20px;
+  border-top: 1px solid #ccc;
+  padding-top: 20px;
+}
+
+.nurse-type {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.nurse-type span {
+  flex: 1;
+}
+
+.nurse-type button {
+  width: 30px;
+  height: 30px;
+  margin-left: 5px;
+  font-size: 18px;
+  cursor: point}
+
+.nurse-indicator {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+}
+
+.nurse-indicator.icu { background-color: #FF4136; }
+.nurse-indicator.orthopedic { background-color: #FF851B; }
+.nurse-indicator.pediatric { background-color: #FFDC00; }
+.nurse-indicator.medicalSurgical { background-color: #2ECC40; }
+.nurse-indicator.er { background-color: #0074D9; }
+
+form {
   margin-top: 20px;
 }
 
-.sidebar input[type="text"] {
+input[type="text"] {
   width: 100%;
   padding: 10px;
   margin-bottom: 10px;
 }
 
-.sidebar button {
-  padding: 10px 20px;
+button[type="submit"] {
+  width: 100%;
+  padding: 10px;
   background-color: #4CAF50;
   color: white;
   border: none;
   cursor: pointer;
 }
 
-.sidebar button:hover {
-  background-color: #45a049;
+button[type="submit"]:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
 }
 
 .response {
   margin-top: 20px;
   padding: 10px;
-  background-color: #
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
 }
