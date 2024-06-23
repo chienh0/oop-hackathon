@@ -15,7 +15,7 @@ upload_headers = {
 response = requests.post(base_url, json=payload, headers=upload_headers).json()
 noteId = response["noteId"]
 upload_url = response["audioUploadUrl"]
-file_path = "audio_files/ems_test_audio_2.m4a"
+file_path = "audio_files/ems_youtube_clip_1.m4a"
 def upload_audio_file(url, file_path):
     """
     Uploads an audio file to the specified URL using a PUT request.
@@ -35,9 +35,9 @@ def upload_audio_file(url, file_path):
     
 response = upload_audio_file(upload_url, file_path)
 print(response.text)
-# need the note id 
-time.sleep(60)
-print("--- Waiting 60 seconds ---")
+print(f"noteID: {noteId}")
+print("--- Waiting 120 seconds ---")
+time.sleep(120)
 # GET the data
 get_url = f"https://api.deepscribe.ai/partners/v1/note/{noteId}"
 
@@ -49,7 +49,3 @@ get_headers = {
 response = requests.get(get_url, headers=get_headers)
 
 print(response.text)
-
-
-
-
