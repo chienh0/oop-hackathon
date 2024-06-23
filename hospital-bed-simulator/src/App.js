@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import './HospitalSimulator.css';
 import Anthropic from '@anthropic-ai/sdk';
-import NurseManager from './NurseManager';
+import Wing from './Wing';
+import SetupMode from './SetupMode';
 
 // Initialize the Anthropic client
 const anthropic = new Anthropic({
@@ -10,47 +11,71 @@ const anthropic = new Anthropic({
 });
 
 function App() {
-  const [beds, setBeds] = useState(Array(20).fill(false));
+  const [setupMode, setSetupMode] = useState(true);
+  const [wings, setWings] = useState({
+    ICU: { beds: 5, nurses: 5, occupiedBeds: 0, activeNurses: 0, ratio: 1 },
+    Cardiology: { beds: 12, nurses: 4, occupiedBeds: 0, activeNurses: 0, ratio: 3 },
+    Pulmonology: { beds: 12, nurses: 3, occupiedBeds: 0, activeNurses: 0, ratio: 4 },
+    Nephrology: { beds: 12, nurses: 3, occupiedBeds: 0, activeNurses: 0, ratio: 4 },
+    EmergencyDepartment: { beds: 12, nurses: 4, occupiedBeds: 0, activeNurses: 0, ratio: 3 },
+    GeneralMedicine: { beds: 12, nurses: 3, occupiedBeds: 0, activeNurses: 0, ratio: 4 }
+  });
   const [query, setQuery] = useState('');
   const [response, setResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [nurses, setNurses] = useState({
-    ICU: 5,
-    orthopedic: 4,
-    pediatric: 3,
-    medicalSurgical: 6,
-    ER: 5
-  });
-  const [nurseAssignments, setNurseAssignments] = useState(Array(20).fill(null));
 
-  const updateNurseCount = (nurseType, change) => {
-    setNurses(prevNurses => ({
-      ...prevNurses,
-      [nurseType]: Math.max(0, prevNurses[nurseType] + change)
+  const updateWing = (wingName, field, value) => {
+    setWings(prevWings => ({
+      ...prevWings,
+      [wingName]: {
+        ...prevWings[wingName],
+        [field]: value
+      }
     }));
   };
 
-  const toggleBed = (indexOrIndices) => {
-    setBeds(prevBeds => {
-      const newBeds = [...prevBeds];
-      if (Array.isArray(indexOrIndices)) {
-        // Handle multiple beds
-        indexOrIndices.forEach(index => {
-          newBeds[index] = !newBeds[index];
-        });
-      } else {
-        // Handle single bed
-        newBeds[indexOrIndices] = !newBeds[indexOrIndices];
+  const toggleSetupMode = () => {
+    setSetupMode(!setupMode);
+  };
+
+  const assignPatient = (wingName, count = 1) => {
+    setWings(prevWings => {
+      const wing = prevWings[wingName];
+      const availableBeds = wing.beds - wing.occupiedBeds;
+      const availableNurses = Math.floor((wing.nurses * wing.ratio) - wing.occupiedBeds);
+      const assignablePatients = Math.min(count, availableBeds, availableNurses);
+
+      if (assignablePatients <= 0) {
+        console.log(`No available capacity in ${wingName}`);
+        return prevWings;
       }
-      return newBeds;
+
+      return {
+        ...prevWings,
+        [wingName]: {
+          ...wing,
+          occupiedBeds: wing.occupiedBeds + assignablePatients,
+          activeNurses: Math.ceil((wing.occupiedBeds + assignablePatients) / wing.ratio)
+        }
+      };
     });
   };
 
-  const assignNurse = (bedIndex, nurseType) => {
-    setNurseAssignments(prev => {
-      const newAssignments = [...prev];
-      newAssignments[bedIndex] = nurseType;
-      return newAssignments;
+  const dischargePatient = (wingName) => {
+    setWings(prevWings => {
+      const wing = prevWings[wingName];
+      if (wing.occupiedBeds <= 0) {
+        alert(`No patients to discharge in ${wingName}`);
+        return prevWings;
+      }
+      return {
+        ...prevWings,
+        [wingName]: {
+          ...wing,
+          occupiedBeds: wing.occupiedBeds - 1,
+          activeNurses: Math.ceil((wing.occupiedBeds - 1) / wing.ratio)
+        }
+      };
     });
   };
 
@@ -72,26 +97,28 @@ function App() {
 
   const processQuery = async (input) => {
     try {
-      const bedStatus = beds.map((isOccupied, index) =>
-        `Bed ${index + 1}: ${isOccupied ? 'Occupied' : 'Available'}`
-      ).join(', ');
-
-      const nurseStatus = Object.entries(nurses)
-        .map(([type, count]) => `${type}: ${count}`)
+      const wingStatus = Object.entries(wings)
+        .map(([wingName, wingData]) => `${wingName}: ${wingData.beds - wingData.occupiedBeds}/${wingData.beds} beds available, ${wingData.nurses - wingData.activeNurses}/${wingData.nurses} nurses available`)
         .join(', ');
 
-      const nurseAssignmentStatus = nurseAssignments.map((nurse, index) =>
-        `Bed ${index + 1}: ${nurse || 'Unassigned'}`
-      ).join(', ');
-
       const messages = [
-        { role: "user", content: `The current bed status is: ${bedStatus}. The current nurse staffing is: ${nurseStatus}. Nurse assignments: ${nurseAssignmentStatus}. User query: ${input}. Based on the bed status, nurse staffing, nurse assignments, and the user's query, provide a response and suggest any actions if necessary. If the query involves changing bed status for multiple beds, include the command 'TOGGLE_BEDS_X,Y,Z' where X,Y,Z are bed numbers. If it involves changing nurse staffing, include the command 'UPDATE_NURSE_TYPE_Y' where TYPE is the nurse type and Y is the change in count (positive or negative). If it involves assigning nurses, include the command 'ASSIGN_NURSE_TYPE_TO_BEDS_X,Y,Z' where TYPE is the nurse type and X,Y,Z are bed numbers.` },
+        { role: "user", content: `
+          Hospital status: ${wingStatus}. 
+          User query: ${input}. 
+          Provide a detailed response and suggest specific actions for all patients. Use these commands:
+          - 'ASSIGN_X_PATIENTS_TO_WING_Y' to assign X patients to wing Y
+          Respond with a structured plan for each group of patients, including:
+          1. Summary of incoming patients
+          2. Individual patient group assessments and wing assignments (use the ASSIGN command for each group)
+          3. Overall plan and any additional recommendations
+          Use a numbered list for clarity and ensure all patients are assigned.
+        ` },
       ];
 
       console.log("Sending request to Anthropic API...");
       const completion = await anthropic.messages.create({
         model: "claude-3-sonnet-20240229",
-        system: "You are an AI assistant managing a hospital bed system.",
+        system: "You are an AI assistant managing a hospital bed system. Assign all patients to appropriate wings based on their conditions and available capacity. Use the ASSIGN_X_PATIENTS_TO_WING_Y command for each group of patients.",
         messages: messages,
         max_tokens: 1000,
       });
@@ -99,39 +126,22 @@ function App() {
 
       const aiResponse = completion.content[0].text;
 
-      // Check if the AI suggested toggling multiple beds
-      const toggleMatch = aiResponse.match(/TOGGLE_BEDS_([\d,]+)/);
-      if (toggleMatch) {
-        const bedNumbers = toggleMatch[1].split(',').map(num => parseInt(num) - 1);
-        toggleBed(bedNumbers);  // This now passes an array, which the updated toggleBed function can handle
+      // Process AI response
+      const assignMatches = aiResponse.matchAll(/ASSIGN_(\d+)_PATIENTS_TO_WING_(\w+)/g);
+      for (const match of assignMatches) {
+        const [, count, wingName] = match;
+        assignPatient(wingName, parseInt(count));
       }
 
-      // Check if the AI suggested updating nurse count
-      const nurseUpdateMatch = aiResponse.match(/UPDATE_NURSE_(\w+)_(-?\d+)/);
-      if (nurseUpdateMatch) {
-        const nurseType = nurseUpdateMatch[1].toLowerCase();
-        const change = parseInt(nurseUpdateMatch[2]);
-        if (nurses.hasOwnProperty(nurseType)) {
-          updateNurseCount(nurseType, change);
-        }
-      }
+      // Format the response for better readability
+      const formattedResponse = aiResponse
+        .replace(/ASSIGN_\d+_PATIENTS_TO_WING_\w+/g, '')
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('\n');
 
-      // Check if the AI suggested assigning nurses to multiple beds
-      const nurseAssignMatch = aiResponse.match(/ASSIGN_NURSE_(\w+)_TO_BEDS_([\d,]+)/);
-      if (nurseAssignMatch) {
-        const nurseType = nurseAssignMatch[1].toLowerCase();
-        const bedNumbers = nurseAssignMatch[2].split(',').map(num => parseInt(num) - 1);
-        bedNumbers.forEach(bedNumber => {
-          if (bedNumber >= 0 && bedNumber < beds.length) {
-            assignNurse(bedNumber, nurseType);
-          }
-        });
-      }
-
-      return aiResponse.replace(/TOGGLE_BEDS_[\d,]+/g, '')
-                       .replace(/UPDATE_NURSE_\w+_-?\d+/g, '')
-                       .replace(/ASSIGN_NURSE_\w+_TO_BEDS_[\d,]+/g, '')
-                       .trim();
+      return formattedResponse;
     } catch (error) {
       console.error("Error in processQuery:", error);
       console.error("Error details:", error.message);
@@ -144,44 +154,47 @@ function App() {
   };
 
   return (
-      <div className="hospital-simulator">
-        <div className="main-content">
-          <div className="floor-plan">
-            {beds.map((isOccupied, index) => (
-                <div
-                    key={index}
-                    className={`bed ${isOccupied ? 'occupied' : 'available'}`}
-                    onClick={() => toggleBed(index)}  // This remains unchanged
-                >
-                  {index + 1}
-                  {nurseAssignments[index] && (
-                      <div className={`nurse-indicator ${nurseAssignments[index]}`}>
-                        {nurseAssignments[index].charAt(0).toUpperCase()}
-                      </div>
-                  )}
-                </div>
-            ))}
-          </div>
-          <div className="sidebar">
-            <h2>Hospital Bed Simulator</h2>
-            <p>Available Beds: {beds.filter(bed => !bed).length}</p>
-            <p>Occupied Beds: {beds.filter(bed => bed).length}</p>
-            <NurseManager nurses={nurses} updateNurseCount={updateNurseCount}/>
+    <div className="hospital-simulator">
+      {setupMode ? (
+        <SetupMode wings={wings} updateWing={updateWing} />
+      ) : (
+        <div className="wings-container">
+          {Object.entries(wings).map(([wingName, wingData]) => (
+            <Wing
+              key={wingName}
+              name={wingName}
+              beds={wingData.beds}
+              occupiedBeds={wingData.occupiedBeds}
+              nurses={wingData.nurses}
+              activeNurses={wingData.activeNurses}
+              ratio={wingData.ratio}
+            />
+          ))}
+        </div>
+      )}
+      <div className="sidebar">
+        <h2>Hospital Bed Simulator</h2>
+        <button onClick={toggleSetupMode}>
+          {setupMode ? "Start Triage" : "Return to Setup"}
+        </button>
+        {!setupMode && (
+          <>
             <form onSubmit={handleQuery}>
-              <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Enter your query..."
+              <textarea
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Enter your query..."
+                rows="4"
               />
               <button type="submit" disabled={isLoading}>
                 {isLoading ? 'Processing...' : 'Submit'}
               </button>
             </form>
             {response && <p className="response">{response}</p>}
-          </div>
-        </div>
+          </>
+        )}
       </div>
+    </div>
   );
 }
 
