@@ -1,32 +1,143 @@
 .hospital-simulator {
   display: flex;
   height: 100vh;
+  font-family: Arial, sans-serif;
 }
 
-.main-content {
-  display: flex;
-  flex: 1;
-}
-
-.floor-plan {
-  flex: 3;
-  display: flex;
-  flex-wrap: wrap;
+.wings-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
   padding: 20px;
   background-color: #f0f0f0;
 }
 
-.bed {
+.sidebar {
+  flex: 1;
+  padding: 20px;
+  background-color: #e0e0e0;
+  overflow-y: auto;
+}
+
+.setup-mode {
+  flex: 3;
+  padding: 20px;
+  background-color: #f0f0f0;
+  overflow-y: auto;
+}
+
+.setup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.setup-header h2 {
+  margin: 0;
+}
+
+.setup-header button {
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.setup-header button:hover {
+  background-color: #45a049;
+}
+
+.wing-setup {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #ffffff;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.wing-setup h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.max-beds {
+  font-style: italic;
+  font-weight: normal;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.wing-setup p {
+  margin: 5px 0;
+}
+
+.wing-setup input {
   width: 60px;
-  height: 100px;
-  margin: 10px;
+  margin-left: 10px;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+
+.wing {
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.wing:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 8p
+}
+
+.wing h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 1.2em;
+  border-bottom: 2px solid #4CAF50;
+  padding-bottom: 5px;
+}
+
+.wing.ICU { background-color: #E6F3FF; }
+.wing.Cardiology { background-color: #FFE6E6; }
+.wing.Pulmonology { background-color: #E6FFE6; }
+.wing.Nephrology { background-color: #FFE6FF; }
+.wing.EmergencyDepartment { background-color: #FFFFE6; }
+.wing.GeneralMedicine { background-color: #E6FFFF; }
+
+.beds {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: 10px;
+}
+
+.bed {
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
+  font-size: 12px;
+  color: #333;
   cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative; /* Add this to allow absolute positioning of the nurse indicator */
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.bed:hover {
+  transform: scale(1.1);
 }
 
 .bed.available {
@@ -39,86 +150,48 @@
   border: 2px solid #FF6347;
 }
 
-.sidebar {
-  flex: 1;
-  padding: 20px;
-  background-color: #e0e0e0;
-  overflow-y: auto;
-}
-
-.nurse-manager {
+.hospital-stats {
   margin-top: 20px;
-  border-top: 1px solid #ccc;
-  padding-top: 20px;
 }
 
-.nurse-type {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.wing-stat {
   margin-bottom: 10px;
+  padding: 10px;
+  background-color: #ffffff;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
-
-.nurse-type span {
-  flex: 1;
-}
-
-.nurse-type button {
-  width: 30px;
-  height: 30px;
-  margin-left: 5px;
-  font-size: 18px;
-  cursor: point}
-
-.nurse-indicator {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: bold;
-  color: white;
-}
-
-.nurse-indicator.icu { background-color: #FF4136; }
-.nurse-indicator.orthopedic { background-color: #FF851B; }
-.nurse-indicator.pediatric { background-color: #FFDC00; }
-.nurse-indicator.medicalSurgical { background-color: #2ECC40; }
-.nurse-indicator.er { background-color: #0074D9; }
 
 form {
   margin-top: 20px;
 }
 
-input[type="text"] {
+textarea {
   width: 100%;
   padding: 10px;
   margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
 }
 
-button[type="submit"] {
-  width: 100%;
-  padding: 10px;
+button {
+  padding: 10px 20px;
   background-color: #4CAF50;
   color: white;
   border: none;
+  border-radius: 4px;
   cursor: pointer;
 }
 
-button[type="submit"]:disabled {
+button:disabled {
   background-color: #cccccc;
-  cursor: not-allowed;
 }
 
 .response {
   margin-top: 20px;
   padding: 10px;
-  background-color: #f9f9f9;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  background-color: #ffffff;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
