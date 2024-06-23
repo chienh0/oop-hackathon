@@ -79,6 +79,23 @@ function App() {
     });
   };
 
+  const toggleBed = (wingName, bedIndex) => {
+    setWings(prevWings => {
+      const wing = prevWings[wingName];
+      const newOccupiedBeds = wing.occupiedBeds + (bedIndex < wing.occupiedBeds ? -1 : 1);
+      const newActiveNurses = Math.ceil(newOccupiedBeds / wing.ratio);
+
+      return {
+        ...prevWings,
+        [wingName]: {
+          ...wing,
+          occupiedBeds: newOccupiedBeds,
+          activeNurses: newActiveNurses
+        }
+      };
+    });
+  };
+
   const handleQuery = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -168,6 +185,7 @@ function App() {
               nurses={wingData.nurses}
               activeNurses={wingData.activeNurses}
               ratio={wingData.ratio}
+              onToggleBed={(bedIndex) => toggleBed(wingName, bedIndex)}
             />
           ))}
         </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { AvailableBed, OccupiedBed } from './BedIcons';
 
-const Wing = ({ name, beds, occupiedBeds, nurses, activeNurses, ratio }) => (
+const Wing = ({ name, beds, occupiedBeds, nurses, activeNurses, ratio, onToggleBed }) => (
   <div className={`wing ${name}`}>
     <h3>{name}</h3>
     <p>Beds: {occupiedBeds}/{beds}</p>
@@ -12,6 +12,7 @@ const Wing = ({ name, beds, occupiedBeds, nurses, activeNurses, ratio }) => (
         <div
           key={index}
           className={`bed ${index < occupiedBeds ? 'occupied' : 'available'}`}
+          onClick={() => onToggleBed(index)}
         >
           {index < occupiedBeds ? <OccupiedBed /> : <AvailableBed />}
         </div>
