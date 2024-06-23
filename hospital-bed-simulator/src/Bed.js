@@ -1,13 +1,12 @@
-// Bed.js
 import React, { useState } from 'react';
 
-const Bed = ({ isOccupied, wingName, bedNumber, onClick, patientInfo }) => {
+const Bed = ({ isOccupied, isAvailable, wingName, bedNumber, onClick, patientInfo }) => {
   const [showInfo, setShowInfo] = useState(false);
 
   return (
     <div className="bed-container">
       <div
-        className={`bed ${isOccupied ? 'occupied' : 'available'}`}
+        className={`bed ${isOccupied ? 'occupied' : 'available'} ${!isAvailable ? 'unavailable' : ''}`}
         onClick={onClick}
         onMouseEnter={() => setShowInfo(true)}
         onMouseLeave={() => setShowInfo(false)}

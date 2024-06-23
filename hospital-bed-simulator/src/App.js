@@ -51,71 +51,23 @@ function App() {
   // Function to assign patients to a specific wing
   const assignPatient = (wingName, count = 1, patientInfo = []) => {
     setWings(prevWings => {
+      if (!prevWings || !prevWings[wingName]) {
+        console.error(`Wing ${wingName} not found`);
+        return prevWings;
+      }
+
       const wing = prevWings[wingName];
-      const availableBeds = wing.beds - wing.occupiedBeds;
-      const availableNurses = Math.floor((wing.nurses * wing.ratio) - wing.occupiedBeds);
-      const assignablePatients = Math.min(count, availableBeds, availableNurses);
+      const availableBeds = Math.min(wing.beds - wing.occupiedBeds, (wing.nurses * wing.ratio) - wing.occupiedBeds);
+      const assignablePatients = Math.min(count, availableBeds);
 
       if (assignablePatients <= 0) {
         console.log(`No available capacity in ${wingName}`);
         return prevWings;
       }
 
-      const newWings = {
-        ...prevWings,
-        [wingName]: {
-          ...wing,
-          occupiedBeds: wing.occupiedBeds + assignablePatients,
-          activeNurses: Math.ceil((wing.occupiedBeds + assignablePatients) / wing.ratio)
-        }
-      };
-
-      console.log(`Assigned ${assignablePatients} patient(s) to ${wingName}`);
-
-      // Update patients state
-      setPatients(prevPatients => {
-        const newPatients = {...prevPatients};
-        for (let i = 0; i < assignablePatients && i < patientInfo.length; i++) {
-          const bedId = `${wingName}_${wing.occupiedBeds + i}`;
-          newPatients[bedId] = patientInfo[i];
-        }
-        return newPatients;
-      });
-
-      return newWings;
-    });
-  };
-
-  // Function to discharge a patient from a specific wing
-  const dischargePatient = (wingName) => {
-    setWings(prevWings => {
-      const wing = prevWings[wingName];
-      // Check if there are patients to discharge
-      if (wing.occupiedBeds <= 0) {
-        alert(`No patients to discharge in ${wingName}`);
-        return prevWings;
-      }
-      // Update wing data after discharging a patient
-      return {
-        ...prevWings,
-        [wingName]: {
-          ...wing,
-          occupiedBeds: wing.occupiedBeds - 1,
-          activeNurses: Math.ceil((wing.occupiedBeds - 1) / wing.ratio)
-        }
-      };
-    });
-  };
-
-  // Function to toggle the occupancy status of a bed
-  const toggleBed = (wingName, bedIndex) => {
-    setWings(prevWings => {
-      const wing = prevWings[wingName];
-      // Calculate new occupied beds count
-      const newOccupiedBeds = wing.occupiedBeds + (bedIndex < wing.occupiedBeds ? -1 : 1);
-      // Calculate new active nurses count based on the updated bed occupancy
+      const newOccupiedBeds = wing.occupiedBeds + assignablePatients;
       const newActiveNurses = Math.ceil(newOccupiedBeds / wing.ratio);
-      // Update wing data with new bed and nurse counts
+
       return {
         ...prevWings,
         [wingName]: {
@@ -125,6 +77,61 @@ function App() {
         }
       };
     });
+
+    setPatients(prevPatients => {
+      const newPatients = {...prevPatients};
+      for (let i = 0; i < count && i < patientInfo.length; i++) {
+        const bedId = `${wingName}_${wings[wingName].occupiedBeds + i}`;
+        newPatients[bedId] = patientInfo[i];
+      }
+      return newPatients;
+    });
+  };
+
+  // Function to toggle the occupancy status of a bed
+  const toggleBed = (wingName, bedIndex) => {
+    setWings(prevWings => {
+      const wing = prevWings[wingName];
+      const isOccupying = bedIndex >= wing.occupiedBeds;
+      const newOccupiedBeds = wing.occupiedBeds + (isOccupying ? 1 : -1);
+      const newActiveNurses = Math.ceil(newOccupiedBeds / wing.ratio);
+
+      if (isOccupying && newOccupiedBeds > wing.nurses * wing.ratio) {
+        console.log(`Not enough nurses in ${wingName} to occupy this bed`);
+        return prevWings;
+      }
+
+      return {
+        ...prevWings,
+        [wingName]: {
+          ...wing,
+          occupiedBeds: newOccupiedBeds,
+          activeNurses: newActiveNurses
+        }
+      };
+    });
+
+    // Update patients state if needed
+    if (bedIndex >= wings[wingName].occupiedBeds) {
+      setPatients(prevPatients => {
+        const newPatients = {...prevPatients};
+        const bedId = `${wingName}_${bedIndex}`;
+        newPatients[bedId] = {
+          condition: "Unknown",
+          age: "Unknown",
+          gender: "Unknown",
+          dischargeProb: 0.5
+        };
+        return newPatients;
+      });
+    } else {
+      setPatients(prevPatients => {
+        const newPatients = {...prevPatients};
+        const bedId = `${wingName}_${bedIndex}`;
+        delete newPatients[bedId];
+        return newPatients;
+      });
+    }
   };
 
   // Function to handle user query submission
@@ -198,12 +205,12 @@ function App() {
       const assignMatches = aiResponse.matchAll(/ASSIGN_(\d+)_PATIENT(?:S)?_TO_WING_(\w+)/g);
       for (const match of assignMatches) {
         const [, count, wingName] = match;
-        assignPatient(wingName, parseInt(count), patientInfo);
+        if (wings[wingName]) {
+          assignPatient(wingName, parseInt(count), patientInfo);
+        } else {
+          console.error(`Invalid wing name: ${wingName}`);
+        }
       }
-
-      console.log("AI Response:", aiResponse);
-      console.log("Extracted Patient Info:", patientInfo);
-      console.log("Assignment Matches:", Array.from(aiResponse.matchAll(/ASSIGN_(\d+)_PATIENT(?:S)?_TO_WING_(\w+)/g)));
 
       // Format the response for better readability
       const formattedResponse = aiResponse
@@ -223,9 +230,6 @@ function App() {
       }
       return "Sorry, there was an error processing your query.";
     }
-    console.log("AI Response:", aiResponse);
-    console.log("Extracted Patient Info:", patientInfo);
-    console.log("Assignment Matches:", Array.from(aiResponse.matchAll(/ASSIGN_(\d+)_PATIENT(?:S)?_TO_WING_(\w+)/g)));
   };
 
 
@@ -235,7 +239,7 @@ function App() {
         <SetupMode wings={wings} updateWing={updateWing} />
       ) : (
         <div className="wings-container">
-          {Object.entries(wings).map(([wingName, wingData]) => (
+          {wings && Object.entries(wings).map(([wingName, wingData]) => (
             <Wing
               key={wingName}
               name={wingName}
