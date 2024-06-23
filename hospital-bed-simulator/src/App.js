@@ -14,6 +14,9 @@ function App() {
   // State for managing setup mode toggle
   const [setupMode, setSetupMode] = useState(true);
 
+  // State for storing patient information
+  const [patients, setPatients] = useState({});
+
   // State for managing hospital wings
   const [wings, setWings] = useState({
     ICU: { beds: 5, nurses: 5, occupiedBeds: 0, activeNurses: 0, ratio: 1 },
@@ -46,7 +49,7 @@ function App() {
   };
 
   // Function to assign patients to a specific wing
-  const assignPatient = (wingName, count = 1) => {
+  const assignPatient = (wingName, count = 1, patientInfo = []) => {
     setWings(prevWings => {
       const wing = prevWings[wingName];
       const availableBeds = wing.beds - wing.occupiedBeds;
@@ -58,7 +61,7 @@ function App() {
         return prevWings;
       }
 
-      return {
+      const newWings = {
         ...prevWings,
         [wingName]: {
           ...wing,
@@ -66,6 +69,20 @@ function App() {
           activeNurses: Math.ceil((wing.occupiedBeds + assignablePatients) / wing.ratio)
         }
       };
+
+      console.log(`Assigned ${assignablePatients} patient(s) to ${wingName}`);
+
+      // Update patients state
+      setPatients(prevPatients => {
+        const newPatients = {...prevPatients};
+        for (let i = 0; i < assignablePatients && i < patientInfo.length; i++) {
+          const bedId = `${wingName}_${wing.occupiedBeds + i}`;
+          newPatients[bedId] = patientInfo[i];
+        }
+        return newPatients;
+      });
+
+      return newWings;
     });
   };
 
@@ -142,9 +159,11 @@ function App() {
           User query: ${input}. 
           Provide a detailed response and suggest specific actions for all patients. Use these commands:
           - 'ASSIGN_X_PATIENTS_TO_WING_Y' to assign X patients to wing Y
+          For each patient, provide details in the format:
+          Patient N: Condition: [condition], Age: [age], Gender: [gender]
           Respond with a structured plan for each group of patients, including:
           1. Summary of incoming patients
-          2. Individual patient group assessments and wing assignments (use the ASSIGN command for each group)
+          2. Individual patient assessments and wing assignments (use the ASSIGN command for each group)
           3. Overall plan and any additional recommendations
           Use a numbered list for clarity and ensure all patients are assigned.
         ` },
@@ -154,31 +173,45 @@ function App() {
       console.log("Sending request to Anthropic API...");
       const completion = await anthropic.messages.create({
         model: "claude-3-sonnet-20240229",
-        // Set the AI system role and instructions
-        system: "You are an AI assistant managing a hospital bed system. Assign all patients to appropriate wings based on their conditions and available capacity. Use the ASSIGN_X_PATIENTS_TO_WING_Y command for each group of patients.",
+        system: "You are an AI assistant managing a hospital bed system. Assign all patients to appropriate wings based on their conditions and available capacity. Use the ASSIGN_X_PATIENT(S)_TO_WING_Y command for each group of patients.",
         messages: messages,
         max_tokens: 1000,
       });
       console.log("Received response from Anthropic:", completion);
 
-      // Extract the text content from the AI response
       const aiResponse = completion.content[0].text;
 
+      // Extract patient information from AI response
+      const patientInfoRegex = /Patient (\d+): Condition: (.+), Age: (.+), Gender: (.+)/g;
+      const patientInfo = [];
+      let match;
+      while ((match = patientInfoRegex.exec(aiResponse)) !== null) {
+        patientInfo.push({
+          condition: match[2] || "Unknown",
+          age: match[3] || "Unknown",
+          gender: match[4] || "Unknown",
+          dischargeProb: 0.5
+        });
+      }
+
       // Process AI response to assign patients to wings
-      const assignMatches = aiResponse.matchAll(/ASSIGN_(\d+)_PATIENTS_TO_WING_(\w+)/g);
+      const assignMatches = aiResponse.matchAll(/ASSIGN_(\d+)_PATIENT(?:S)?_TO_WING_(\w+)/g);
       for (const match of assignMatches) {
         const [, count, wingName] = match;
-        // Call the assignPatient function for each match found
-        assignPatient(wingName, parseInt(count));
+        assignPatient(wingName, parseInt(count), patientInfo);
       }
+
+      console.log("AI Response:", aiResponse);
+      console.log("Extracted Patient Info:", patientInfo);
+      console.log("Assignment Matches:", Array.from(aiResponse.matchAll(/ASSIGN_(\d+)_PATIENT(?:S)?_TO_WING_(\w+)/g)));
 
       // Format the response for better readability
       const formattedResponse = aiResponse
-        .replace(/ASSIGN_\d+_PATIENTS_TO_WING_\w+/g, '') // Remove assignment commands
-        .split('\n') // Split into lines
-        .map(line => line.trim()) // Trim whitespace
-        .filter(line => line.length > 0) // Remove empty lines
-        .join('\n'); // Join back into a single string
+        .replace(/ASSIGN_\d+_PATIENT(?:S)?_TO_WING_\w+/g, '')
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('\n');
 
       return formattedResponse;
     } catch (error) {
@@ -190,7 +223,11 @@ function App() {
       }
       return "Sorry, there was an error processing your query.";
     }
+    console.log("AI Response:", aiResponse);
+    console.log("Extracted Patient Info:", patientInfo);
+    console.log("Assignment Matches:", Array.from(aiResponse.matchAll(/ASSIGN_(\d+)_PATIENT(?:S)?_TO_WING_(\w+)/g)));
   };
+
 
   return (
     <div className="hospital-simulator">
@@ -208,6 +245,7 @@ function App() {
               activeNurses={wingData.activeNurses}
               ratio={wingData.ratio}
               onToggleBed={(bedIndex) => toggleBed(wingName, bedIndex)}
+              patients={patients}
             />
           ))}
         </div>

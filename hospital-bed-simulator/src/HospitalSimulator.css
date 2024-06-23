@@ -134,10 +134,13 @@
   cursor: pointer;
   transition: all 0.2s ease;
   cursor: pointer;
+  position: relative;
+  z-index: 1;
 }
 
 .bed:hover {
   transform: scale(1.1);
+  z-index: 2;
 }
 
 .bed.available {
@@ -194,4 +197,39 @@ button:disabled {
   background-color: #ffffff;
   border-radius: 5px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.patient-info {
+  position: absolute;
+  top: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: white;
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  z-index: 1000; /* Increased z-index */
+  font-size: 10px; /* Reduced font size */
+  color: #333;
+  width: 150px; /* Fixed width */
+  max-height: 100px; /* Max height */
+  overflow-y: auto; /* Scrollable if content exceeds max height */
+  word-wrap: break-word; /* Allows long words to break */
+  white-space: normal; /* Allows text to wrap */
+  pointer-events: none;
+}
+
+.patient-info p {
+  margin: 2px 0;
+}
+
+/* Add this new class */
+.bed-container {
+  position: relative;
+  z-index: 1;
+}
+
+.bed-container:hover {
+  z-index: 1001; /* Higher than .patient-info */
 }
